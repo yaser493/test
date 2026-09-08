@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MedST IA Timetable 2026–27</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --panel:#fff; --ink:#1c1a17; --muted:#6b6560;
+    --line:#e2ddd6; --accent:#7a1f2b; --now:#c0392b;
+    --row-h:52px; --gutter:56px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{ --bg:#16151300; --bg:#151413; --panel:#1e1c1a; --ink:#eeeae4;
+           --muted:#9a938c; --line:#332f2b; --accent:#e0919b; --now:#e26a5c; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  header{padding:18px 20px 12px;border-bottom:1px solid var(--line);background:var(--panel)}
+  h1{margin:0 0 2px;font-size:17px;font-weight:650;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:12px}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+  button,select{font:inherit;color:inherit;background:var(--panel);
+    border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+  button:hover,select:hover{border-color:var(--muted)}
+  button:disabled{opacity:.4;cursor:default}
+  #wk{min-width:230px;text-align:center;font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);
+    border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;user-select:none;background:var(--panel)}
+  .chip[data-off="1"]{opacity:.35}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .note{margin:12px 20px 0;padding:9px 12px;border-left:3px solid var(--accent);
+    background:var(--panel);color:var(--muted);font-size:12.5px;border-radius:0 4px 4px 0}
+  .wrap{padding:14px 20px 40px;overflow-x:auto}
+  .grid{min-width:820px;position:relative;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px}
+  .head{display:grid;grid-template-columns:var(--gutter) repeat(6,1fr);
+    border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:3;border-radius:8px 8px 0 0}
+  .head div{padding:8px 6px;font-size:12px;font-weight:600;text-align:center;color:var(--muted)}
+  .head div.today{color:var(--accent)}
+  .head div small{display:block;font-weight:400;font-size:11px;opacity:.75}
+  .body{display:grid;grid-template-columns:var(--gutter) repeat(6,1fr);position:relative;padding-top:8px}
+  .times div{height:var(--row-h);font-size:11px;color:var(--muted);
+    text-align:right;padding-right:6px;transform:translateY(-6px)}
+  .col{position:relative;border-left:1px solid var(--line)}
+  .col.today{background:color-mix(in srgb,var(--accent) 5%,transparent)}
+  .col.out{background:repeating-linear-gradient(45deg,transparent,transparent 6px,
+           color-mix(in srgb,var(--line) 45%,transparent) 6px,color-mix(in srgb,var(--line) 45%,transparent) 7px)}
+  .head div.out{opacity:.4}
+  .col .line{height:var(--row-h);border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+  .ev{position:absolute;left:2px;right:2px;border-radius:5px;padding:4px 6px;
+    overflow:hidden;cursor:pointer;border-left:3px solid;font-size:11.5px;line-height:1.25}
+  .ev b{display:block;font-weight:600;font-size:11.5px}
+  .ev span{display:block;color:var(--muted);font-size:10.5px}
+  .ev:hover{filter:brightness(.97)}
+  .nowline{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--now);z-index:2;pointer-events:none}
+  .nowline::before{content:"";position:absolute;left:-4px;top:-4px;width:7px;height:7px;
+    border-radius:50%;background:var(--now)}
+  dialog{border:1px solid var(--line);border-radius:8px;background:var(--panel);
+    color:var(--ink);padding:18px 20px;max-width:340px;box-shadow:0 12px 40px rgba(0,0,0,.18)}
+  dialog::backdrop{background:rgba(0,0,0,.35)}
+  dialog h2{margin:0 0 4px;font-size:15px}
+  dialog dl{margin:10px 0 0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px}
+  dialog dt{color:var(--muted)}
+  dialog dd{margin:0}
+  .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+  @media print{
+    header .bar,.chips,.note{display:none}
+    body{background:#fff}
+    .wrap{padding:0}
+    .grid{border:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Medical Sciences Tripos IA — 2026–27</h1>
+  <div class="sub">Weekly teaching timetable · first-year Cambridge medics</div>
+  <div class="bar">
+    <select id="term"></select>
+    <button id="prev">‹</button>
+    <span id="wk"></span>
+    <button id="next">›</button>
+    <button id="today">Today</button>
+    <button onclick="print()">Print</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<p class="note" id="banner"></p>
+
+<div class="wrap">
+  <div class="grid">
+    <div class="head" id="head"></div>
+    <div class="body" id="body"></div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <h2 id="dTitle"></h2>
+  <div class="sub" id="dCourse"></div>
+  <dl>
+    <dt>When</dt><dd id="dWhen"></dd>
+    <dt>Type</dt><dd id="dType"></dd>
+    <dt>Where</dt><dd id="dWhere"></dd>
+  </dl>
+  <p style="margin:14px 0 0"><button onclick="dlg.close()">Close</button></p>
+</dialog>
+
+<script>
+/* ============================================================
+   EDIT EVERYTHING BELOW. Nothing else in this file needs touching.
+   ============================================================ */
+
+/* Cambridge Full Term dates. Check against the official Term Dates page
+   before you rely on these. */
+const TERMS = [
+  { id:"mich",   name:"Michaelmas 2026", start:"2026-10-06", end:"2026-12-04" },
+  { id:"lent",   name:"Lent 2027",       start:"2027-01-12", end:"2027-03-12" },
+  { id:"easter", name:"Easter 2027",     start:"2027-04-20", end:"2027-06-11" }
+];
+
+/* The five MedST IA papers. Change colours if you like. */
+const COURSES = {
+  FAB:   { name:"Functional Architecture of the Body", colour:"#8e5a3c" },
+  MIMS:  { name:"Molecules in Medical Science",        colour:"#3d6b8e" },
+  HOM:   { name:"Homeostasis",                         colour:"#4a7a52" },
+  ISBM:  { name:"Intro to Scientific Basis of Medicine",colour:"#7a5b8e" },
+  SECHI: { name:"Social & Ethical Context of Health",   colour:"#8e7a2f" },
+  SUP:   { name:"Supervisions / college",              colour:"#6b6560" }
+};
+
+/* SESSIONS — the actual timetable.
+   day:   1=Mon 2=Tue 3=Wed 4=Thu 5=Fri 6=Sat
+   terms: which terms it runs in
+   weeks: "all", or a list like [1,2,3] (week 1 = first week of Full Term)
+   This is the STRUCTURE of a MedST IA week, not confirmed times —
+   replace with the real slots from timetable.pdn.cam.ac.uk.            */
+const SESSIONS = [
+  // --- mornings: lectures ---
+  { course:"MIMS",  title:"Molecules in Medical Science", type:"Lecture",
+    day:1, start:"09:00", end:"10:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+  { course:"FAB",   title:"Functional Architecture of the Body", type:"Lecture",
+    day:1, start:"10:00", end:"11:00", where:"Anatomy lecture theatre", terms:["mich","lent","easter"], weeks:"all" },
+  { course:"HOM",   title:"Homeostasis", type:"Lecture",
+    day:1, start:"11:00", end:"12:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+
+  { course:"MIMS",  title:"Molecules in Medical Science", type:"Lecture",
+    day:2, start:"09:00", end:"10:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+  { course:"FAB",   title:"Functional Architecture of the Body", type:"Lecture",
+    day:2, start:"10:00", end:"11:00", where:"Anatomy lecture theatre", terms:["mich","lent","easter"], weeks:"all" },
+  { course:"HOM",   title:"Homeostasis", type:"Lecture",
+    day:2, start:"11:00", end:"12:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+
+  { course:"MIMS",  title:"Molecules in Medical Science", type:"Lecture",
+    day:3, start:"09:00", end:"10:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+  { course:"FAB",   title:"Functional Architecture of the Body", type:"Lecture",
+    day:3, start:"10:00", end:"11:00", where:"Anatomy lecture theatre", terms:["mich","lent","easter"], weeks:"all" },
+  { course:"ISBM",  title:"Intro to the Scientific Basis of Medicine", type:"Lecture",
+    day:3, start:"11:00", end:"12:00", where:"Physiology lecture theatre", terms:["mich"], weeks:"all" },
+
+  { course:"MIMS",  title:"Molecules in Medical Science", type:"Lecture",
+    day:4, start:"09:00", end:"10:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+  { course:"FAB",   title:"Functional Architecture of the Body", type:"Lecture",
+    day:4, start:"10:00", end:"11:00", where:"Anatomy lecture theatre", terms:["mich","lent","easter"], weeks:"all" },
+  { course:"HOM",   title:"Homeostasis", type:"Lecture",
+    day:4, start:"11:00", end:"12:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+
+  { course:"MIMS",  title:"Molecules in Medical Science", type:"Lecture",
+    day:5, start:"09:00", end:"10:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+  { course:"FAB",   title:"Functional Architecture of the Body", type:"Lecture",
+    day:5, start:"10:00", end:"11:00", where:"Anatomy lecture theatre", terms:["mich","lent","easter"], weeks:"all" },
+  { course:"HOM",   title:"Homeostasis", type:"Lecture",
+    day:5, start:"11:00", end:"12:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+
+  { course:"SECHI", title:"Social & Ethical Context of Health and Illness", type:"Lecture",
+    day:6, start:"09:00", end:"10:00", where:"Physiology lecture theatre", terms:["mich","lent"], weeks:"all" },
+  { course:"FAB",   title:"Functional Architecture of the Body", type:"Lecture",
+    day:6, start:"10:00", end:"11:00", where:"Anatomy lecture theatre", terms:["mich","lent"], weeks:"all" },
+
+  // --- afternoons: practicals & dissection ---
+  { course:"FAB",   title:"Anatomy / dissection", type:"Practical",
+    day:1, start:"14:00", end:"17:00", where:"Anatomy Building", terms:["mich","lent","easter"], weeks:"all" },
+  { course:"MIMS",  title:"Biochemistry practical", type:"Practical",
+    day:2, start:"14:00", end:"17:00", where:"Biochemistry teaching lab", terms:["mich","lent"], weeks:"all" },
+  { course:"FAB",   title:"Histology", type:"Practical",
+    day:3, start:"14:00", end:"17:00", where:"Anatomy Building", terms:["mich","lent"], weeks:"all" },
+  { course:"HOM",   title:"Physiology practical", type:"Practical",
+    day:4, start:"14:00", end:"17:00", where:"Physiology teaching lab", terms:["mich","lent"], weeks:"all" },
+
+  // --- your college fixes these; fill in your own times ---
+  { course:"SUP",   title:"Supervision (set by your college)", type:"Supervision",
+    day:5, start:"14:00", end:"15:00", where:"College", terms:["mich","lent","easter"], weeks:"all" }
+];
+
+/* Grid hours */
+const DAY_START = 8, DAY_END = 18;
+
+/* ============================================================
+   Below here is just the rendering. No need to edit.
+   ============================================================ */
+
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat"];
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,"0");
+const mins = t => (+t.slice(0,2))*60 + (+t.slice(3,5));
+
+function parseISO(s){ const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); }
+function addDays(d,n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+function iso(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+function mondayOf(d){ const x = new Date(d); x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x; }
+
+/* Every Monday-week that Full Term touches, numbered from 1. */
+function weeksOf(term){
+  const out = [], last = mondayOf(parseISO(term.end));
+  let m = mondayOf(parseISO(term.start)), n = 1;
+  while (m <= last){ out.push({ n:n++, monday:new Date(m) }); m = addDays(m,7); }
+  return out;
+}
+
+let termIdx = 0, weekIdx = 0;
+const hidden = new Set(JSON.parse(localStorage.getItem("med.hidden") || "[]"));
+
+function runsIn(s, termId, weekNo){
+  if (!s.terms.includes(termId)) return false;
+  return s.weeks === "all" || s.weeks.includes(weekNo);
+}
+
+function render(){
+  const term  = TERMS[termIdx];
+  const weeks = weeksOf(term);
+  weekIdx = Math.max(0, Math.min(weekIdx, weeks.length-1));
+  const week  = weeks[weekIdx];
+  const monday = week.monday;
+  const todayISO = iso(new Date());
+
+  $("wk").textContent =
+    "Week " + week.n + " · " +
+    monday.toLocaleDateString("en-GB",{day:"numeric",month:"short"}) + " – " +
+    addDays(monday,5).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"});
+  $("prev").disabled = weekIdx === 0;
+  $("next").disabled = weekIdx === weeks.length-1;
+
+  // day headings
+  const tStart = parseISO(term.start), tEnd = parseISO(term.end);
+  const outOfTerm = d => d < tStart || d > tEnd;
+
+  $("head").innerHTML = "<div></div>" + DAYS.map((d,i)=>{
+    const date = addDays(monday,i);
+    const cls  = [iso(date) === todayISO ? "today" : "", outOfTerm(date) ? "out" : ""]
+                 .filter(Boolean).join(" ");
+    return `<div${cls ? ` class="${cls}"` : ""}>${d}`
+         + `<small>${date.getDate()} ${date.toLocaleDateString("en-GB",{month:"short"})}</small></div>`;
+  }).join("");
+
+  // hour gutter
+  let html = '<div class="times">';
+  for (let h = DAY_START; h < DAY_END; h++) html += `<div>${pad(h)}:00</div>`;
+  html += "</div>";
+
+  // day columns
+  let total = 0;
+  for (let i = 0; i < 6; i++){
+    const date = addDays(monday,i);
+    const off  = outOfTerm(date);
+    const cls  = [iso(date) === todayISO ? "today" : "", off ? "out" : ""].filter(Boolean).join(" ");
+    html += `<div class="col${cls ? " " + cls : ""}">`;
+    for (let h = DAY_START; h < DAY_END; h++) html += '<div class="line"></div>';
+
+    (off ? [] : SESSIONS)
+      .filter(s => s.day === i+1 && runsIn(s, term.id, week.n) && !hidden.has(s.course))
+      .forEach(s => {
+        total++;
+        const c   = COURSES[s.course];
+        const top = (mins(s.start) - DAY_START*60) / 60 * 52;
+        const hgt = (mins(s.end) - mins(s.start)) / 60 * 52 - 3;
+        html += `<div class="ev" style="top:${top}px;height:${hgt}px;`
+             +  `border-left-color:${c.colour};`
+             +  `background:color-mix(in srgb, ${c.colour} 14%, transparent)"`
+             +  ` data-s='${JSON.stringify({...s, date:iso(date)}).replace(/'/g,"&#39;")}'>`
+             +  `<b>${s.course} — ${s.title}</b><span>${s.start}–${s.end} · ${s.where}</span></div>`;
+      });
+
+    // "now" marker
+    const now = new Date();
+    if (iso(date) === todayISO){
+      const m = now.getHours()*60 + now.getMinutes();
+      if (m >= DAY_START*60 && m <= DAY_END*60)
+        html += `<div class="nowline" style="top:${(m - DAY_START*60)/60*52}px"></div>`;
+    }
+    html += "</div>";
+  }
+  $("body").innerHTML = html;
+
+  const prev = document.querySelector(".empty");
+  if (prev) prev.remove();
+  if (!total)
+    $("body").insertAdjacentHTML("afterend",
+      '<div class="empty">Nothing timetabled this week — outside Full Term, or everything is filtered out.</div>');
+
+  document.querySelectorAll(".ev").forEach(el =>
+    el.onclick = () => open_(JSON.parse(el.dataset.s)));
+}
+
+function open_(s){
+  const d = parseISO(s.date);
+  $("dTitle").textContent  = s.title;
+  $("dCourse").textContent = COURSES[s.course].name;
+  $("dWhen").textContent   = d.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})
+                           + ", " + s.start + "–" + s.end;
+  $("dType").textContent   = s.type;
+  $("dWhere").textContent  = s.where;
+  $("dlg").showModal();
+}
+
+function chips(){
+  $("chips").innerHTML = Object.entries(COURSES).map(([k,c]) =>
+    `<span class="chip" data-c="${k}" data-off="${hidden.has(k)?1:0}">`
+  + `<i class="dot" style="background:${c.colour}"></i>${k}</span>`).join("");
+  document.querySelectorAll(".chip").forEach(el => el.onclick = () => {
+    const k = el.dataset.c;
+    hidden.has(k) ? hidden.delete(k) : hidden.add(k);
+    localStorage.setItem("med.hidden", JSON.stringify([...hidden]));
+    chips(); render();
+  });
+}
+
+function jumpToToday(){
+  const now = new Date();
+  for (let t = 0; t < TERMS.length; t++){
+    const ws = weeksOf(TERMS[t]);
+    for (let w = 0; w < ws.length; w++){
+      if (iso(mondayOf(now)) === iso(ws[w].monday)){ termIdx = t; weekIdx = w; return true; }
+    }
+    if (now < parseISO(TERMS[t].start)){ termIdx = t; weekIdx = 0; return false; }
+  }
+  termIdx = TERMS.length-1; weekIdx = 0; return false;
+}
+
+$("term").innerHTML = TERMS.map((t,i)=>`<option value="${i}">${t.name}</option>`).join("");
+$("term").onchange = e => { termIdx = +e.target.value; weekIdx = 0; render(); };
+$("prev").onclick  = () => { weekIdx--; render(); };
+$("next").onclick  = () => { weekIdx++; render(); };
+$("today").onclick = () => { jumpToToday(); $("term").value = termIdx; render(); };
+addEventListener("keydown", e => {
+  if (e.key === "ArrowLeft"  && !$("prev").disabled){ weekIdx--; render(); }
+  if (e.key === "ArrowRight" && !$("next").disabled){ weekIdx++; render(); }
+});
+
+$("banner").innerHTML =
+  "<strong>Read this first.</strong> The session times below are a plausible shape of a MedST IA week, "
++ "not the confirmed 2026–27 timetable — they were not fetched from "
++ "timetable.pdn.cam.ac.uk. Replace the <code>SESSIONS</code> array near the top of this file "
++ "with the real slots, and check the Full Term dates in <code>TERMS</code> against the University's "
++ "official term dates. Your college sets supervisions separately.";
+
+jumpToToday();
+$("term").value = termIdx;
+chips();
+render();
+setInterval(render, 60000);
+</script>
+</body>
+</html>
