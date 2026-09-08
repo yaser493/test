@@ -66,6 +66,10 @@
   dialog dt{color:var(--muted)}
   dialog dd{margin:0}
   .empty{padding:26px;text-align:center;color:var(--muted);font-size:13px}
+  body.drop{outline:3px dashed var(--accent);outline-offset:-8px}
+  .note code{font-size:11.5px;background:color-mix(in srgb,var(--line) 50%,transparent);
+    padding:1px 4px;border-radius:3px}
+  .note.live{border-left-color:#4a7a52}
   @media print{
     header .bar,.chips,.note{display:none}
     body{background:#fff}
@@ -86,6 +90,9 @@
     <button id="next">›</button>
     <button id="today">Today</button>
     <button onclick="print()">Print</button>
+    <button id="load">Load my .ics</button>
+    <button id="clear" hidden>Use sample</button>
+    <input type="file" id="file" accept=".ics,text/calendar" hidden>
   </div>
   <div class="chips" id="chips"></div>
 </header>
@@ -200,20 +207,166 @@ const SESSIONS = [
 const DAY_START = 8, DAY_END = 18;
 
 /* ============================================================
-   Below here is just the rendering. No need to edit.
+   Below here is rendering + .ics import. No need to edit.
    ============================================================ */
 
 const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat"];
 const $ = id => document.getElementById(id);
 const pad = n => String(n).padStart(2,"0");
 const mins = t => (+t.slice(0,2))*60 + (+t.slice(3,5));
+const hhmm = d => pad(d.getHours())+":"+pad(d.getMinutes());
 
 function parseISO(s){ const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); }
 function addDays(d,n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
 function iso(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
 function mondayOf(d){ const x = new Date(d); x.setDate(x.getDate() - ((x.getDay()+6)%7)); return x; }
 
-/* Every Monday-week that Full Term touches, numbered from 1. */
+/* ---------- .ics import ---------------------------------------------------
+   Cambridge timetables live behind Raven and differ per student, so the only
+   honest source is your own export. timetable.cam.ac.uk → sign in with Raven
+   → connect/export to calendar → save the .ics → load it here. Parsing runs
+   entirely in this page; nothing is uploaded anywhere.                      */
+
+const PALETTE = ["#8e5a3c","#3d6b8e","#4a7a52","#7a5b8e","#8e7a2f",
+                 "#3f7d7a","#96543f","#5a6b8e","#6b6560","#7d4f5e"];
+
+function unfold(text){
+  return text.replace(/\r\n/g,"\n").replace(/\r/g,"\n").replace(/\n[ \t]/g,"");
+}
+function unesc(v){
+  return v.replace(/\\n/gi,"\n").replace(/\\,/g,",").replace(/\\;/g,";").replace(/\\\\/g,"\\");
+}
+
+/* DTSTART:20261006T090000Z | DTSTART;TZID=Europe/London:20261006T090000 | DTSTART;VALUE=DATE:20261006 */
+function icsDate(params, val){
+  const m = val.match(/^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2})(Z)?)?$/);
+  if (!m) return null;
+  const [,Y,Mo,D,H,Mi,S,Z] = m;
+  if (H === undefined) return { d:new Date(+Y, +Mo-1, +D), allDay:true };
+  if (Z || /TZID=(UTC|GMT)\b/i.test(params))
+    return { d:new Date(Date.UTC(+Y, +Mo-1, +D, +H, +Mi, +S)), allDay:false };
+  // TZID=Europe/London or floating: read as local wall-clock time
+  return { d:new Date(+Y, +Mo-1, +D, +H, +Mi, +S), allDay:false };
+}
+
+function expandRRULE(rule, start, end){
+  const out = [];
+  const p = Object.fromEntries(rule.split(";").map(x => x.split("=")));
+  if ((p.FREQ || "").toUpperCase() !== "WEEKLY") return out;   // only weekly repeats
+  const step  = (+p.INTERVAL || 1) * 7;
+  const count = +p.COUNT || 0;
+  let until = null;
+  if (p.UNTIL){ const u = icsDate("", p.UNTIL); until = u && u.d; }
+  const span = end - start;
+  for (let i = 1; i < 400; i++){
+    const s2 = addDays(start, step*i);
+    if (until && s2 > until) break;
+    if (count && i >= count) break;
+    if (!until && !count && i > 30) break;
+    out.push({ start:s2, end:new Date(+s2 + span) });
+  }
+  return out;
+}
+
+function parseICS(text){
+  const lines = unfold(text).split("\n");
+  const raw = [];
+  let cur = null;
+  for (const line of lines){
+    const t = line.trim();
+    if (t === "BEGIN:VEVENT"){ cur = {}; continue; }
+    if (t === "END:VEVENT"){
+      if (cur && cur.start){
+        if (!cur.end) cur.end = { d:new Date(+cur.start.d + 3600000), allDay:cur.start.allDay };
+        raw.push(cur);
+      }
+      cur = null; continue;
+    }
+    if (!cur) continue;
+    const i = t.indexOf(":");
+    if (i < 0) continue;
+    const key = t.slice(0,i), val = t.slice(i+1);
+    const name = key.split(";")[0].toUpperCase();
+    if      (name === "DTSTART")  cur.start = icsDate(key, val);
+    else if (name === "DTEND")    cur.end   = icsDate(key, val);
+    else if (name === "SUMMARY")  cur.summary = unesc(val);
+    else if (name === "LOCATION") cur.where   = unesc(val);
+    else if (name === "RRULE")    cur.rrule   = val;
+  }
+
+  // flatten, expanding weekly repeats
+  const flat = [];
+  for (const e of raw){
+    if (!e.start || !e.start.d || e.start.allDay) continue;
+    const occ = [{ start:e.start.d, end:e.end.d }, ...(e.rrule ? expandRRULE(e.rrule, e.start.d, e.end.d) : [])];
+    for (const o of occ)
+      flat.push({ start:o.start, end:o.end, summary:e.summary || "(untitled)", where:e.where || "—" });
+  }
+  return flat;
+}
+
+/* Group by course so filter chips and colours still work.
+   Cambridge summaries look like "FAB Lecture: Thorax" or "MIMS Practical". */
+function classify(list){
+  const known = Object.keys(COURSES);
+  const codes = {};
+  for (const e of list){
+    let code = known.find(k => new RegExp("\\b"+k+"\\b","i").test(e.summary));
+    if (!code){
+      const acr = e.summary.match(/\b[A-Z]{2,6}\b/);
+      code = acr ? acr[0] : e.summary.split(/[:\-–(]/)[0].trim().slice(0,22) || "Other";
+    }
+    e.course = code;
+    const type = e.summary.match(/\b(lecture|practical|supervision|seminar|dissection|demonstration|class|workshop)\b/i);
+    e.type  = type ? type[0][0].toUpperCase()+type[0].slice(1).toLowerCase() : "Session";
+    const rx = code.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    e.title = e.summary.replace(new RegExp("^\\s*"+rx+"\\b[\\s:\u2013-]*","i"),"").trim() || e.summary;
+    codes[code] = true;
+  }
+  let i = 0;
+  for (const c of Object.keys(codes))
+    if (!COURSES[c]) COURSES[c] = { name:c, colour:PALETTE[i++ % PALETTE.length] };
+  return list;
+}
+
+/* ---------- state --------------------------------------------------------- */
+
+let TERM_LIST = TERMS.slice();
+let ICS = null;                       // array of dated events, or null for sample
+let termIdx = 0, weekIdx = 0;
+const hidden = new Set(JSON.parse(localStorage.getItem("med.hidden") || "[]"));
+
+function useICS(text){
+  const list = classify(parseICS(text));
+  if (!list.length){ alert("No timed events found in that .ics file."); return false; }
+  list.sort((a,b) => a.start - b.start);
+  ICS = list;
+  TERM_LIST = [{ id:"ics", name:"My timetable",
+                 start:iso(list[0].start), end:iso(list[list.length-1].start) }];
+  localStorage.setItem("med.ics", text);
+  return true;
+}
+
+function useSample(){
+  ICS = null;
+  TERM_LIST = TERMS.slice();
+  localStorage.removeItem("med.ics");
+}
+
+/* sessions for one date, normalised to the shape the grid draws */
+function sessionsFor(date, term, weekNo){
+  if (ICS){
+    const key = iso(date);
+    return ICS.filter(e => iso(e.start) === key && !hidden.has(e.course))
+              .map(e => ({ course:e.course, title:e.title, type:e.type, where:e.where,
+                           start:hhmm(e.start), end:hhmm(e.end) }));
+  }
+  const day = ((date.getDay()+6)%7) + 1;
+  return SESSIONS.filter(s =>
+    s.day === day && s.terms.includes(term.id) &&
+    (s.weeks === "all" || s.weeks.includes(weekNo)) && !hidden.has(s.course));
+}
+
 function weeksOf(term){
   const out = [], last = mondayOf(parseISO(term.end));
   let m = mondayOf(parseISO(term.start)), n = 1;
@@ -221,21 +374,16 @@ function weeksOf(term){
   return out;
 }
 
-let termIdx = 0, weekIdx = 0;
-const hidden = new Set(JSON.parse(localStorage.getItem("med.hidden") || "[]"));
-
-function runsIn(s, termId, weekNo){
-  if (!s.terms.includes(termId)) return false;
-  return s.weeks === "all" || s.weeks.includes(weekNo);
-}
+/* ---------- render -------------------------------------------------------- */
 
 function render(){
-  const term  = TERMS[termIdx];
+  const term  = TERM_LIST[termIdx];
   const weeks = weeksOf(term);
   weekIdx = Math.max(0, Math.min(weekIdx, weeks.length-1));
-  const week  = weeks[weekIdx];
-  const monday = week.monday;
+  const week = weeks[weekIdx], monday = week.monday;
   const todayISO = iso(new Date());
+  const tStart = parseISO(term.start), tEnd = parseISO(term.end);
+  const outOfTerm = d => d < tStart || d > tEnd;
 
   $("wk").textContent =
     "Week " + week.n + " · " +
@@ -244,50 +392,40 @@ function render(){
   $("prev").disabled = weekIdx === 0;
   $("next").disabled = weekIdx === weeks.length-1;
 
-  // day headings
-  const tStart = parseISO(term.start), tEnd = parseISO(term.end);
-  const outOfTerm = d => d < tStart || d > tEnd;
-
   $("head").innerHTML = "<div></div>" + DAYS.map((d,i)=>{
     const date = addDays(monday,i);
-    const cls  = [iso(date) === todayISO ? "today" : "", outOfTerm(date) ? "out" : ""]
-                 .filter(Boolean).join(" ");
-    return `<div${cls ? ` class="${cls}"` : ""}>${d}`
+    const cls  = [iso(date)===todayISO?"today":"", outOfTerm(date)?"out":""].filter(Boolean).join(" ");
+    return `<div${cls?` class="${cls}"`:""}>${d}`
          + `<small>${date.getDate()} ${date.toLocaleDateString("en-GB",{month:"short"})}</small></div>`;
   }).join("");
 
-  // hour gutter
   let html = '<div class="times">';
   for (let h = DAY_START; h < DAY_END; h++) html += `<div>${pad(h)}:00</div>`;
   html += "</div>";
 
-  // day columns
   let total = 0;
   for (let i = 0; i < 6; i++){
     const date = addDays(monday,i);
     const off  = outOfTerm(date);
-    const cls  = [iso(date) === todayISO ? "today" : "", off ? "out" : ""].filter(Boolean).join(" ");
-    html += `<div class="col${cls ? " " + cls : ""}">`;
+    const cls  = [iso(date)===todayISO?"today":"", off?"out":""].filter(Boolean).join(" ");
+    html += `<div class="col${cls?" "+cls:""}">`;
     for (let h = DAY_START; h < DAY_END; h++) html += '<div class="line"></div>';
 
-    (off ? [] : SESSIONS)
-      .filter(s => s.day === i+1 && runsIn(s, term.id, week.n) && !hidden.has(s.course))
-      .forEach(s => {
-        total++;
-        const c   = COURSES[s.course];
-        const top = (mins(s.start) - DAY_START*60) / 60 * 52;
-        const hgt = (mins(s.end) - mins(s.start)) / 60 * 52 - 3;
-        html += `<div class="ev" style="top:${top}px;height:${hgt}px;`
-             +  `border-left-color:${c.colour};`
-             +  `background:color-mix(in srgb, ${c.colour} 14%, transparent)"`
-             +  ` data-s='${JSON.stringify({...s, date:iso(date)}).replace(/'/g,"&#39;")}'>`
-             +  `<b>${s.course} — ${s.title}</b><span>${s.start}–${s.end} · ${s.where}</span></div>`;
-      });
+    (off ? [] : sessionsFor(date, term, week.n)).forEach(s => {
+      total++;
+      const c   = COURSES[s.course] || { colour:"#6b6560", name:s.course };
+      const top = (mins(s.start) - DAY_START*60) / 60 * 52;
+      const hgt = Math.max(16, (mins(s.end) - mins(s.start)) / 60 * 52 - 3);
+      html += `<div class="ev" style="top:${top}px;height:${hgt}px;`
+           +  `border-left-color:${c.colour};`
+           +  `background:color-mix(in srgb, ${c.colour} 14%, transparent)"`
+           +  ` data-s='${JSON.stringify({...s, date:iso(date)}).replace(/'/g,"&#39;")}'>`
+           +  `<b>${esc(s.course)} — ${esc(s.title)}</b>`
+           +  `<span>${s.start}–${s.end} · ${esc(s.where)}</span></div>`;
+    });
 
-    // "now" marker
-    const now = new Date();
     if (iso(date) === todayISO){
-      const m = now.getHours()*60 + now.getMinutes();
+      const now = new Date(), m = now.getHours()*60 + now.getMinutes();
       if (m >= DAY_START*60 && m <= DAY_END*60)
         html += `<div class="nowline" style="top:${(m - DAY_START*60)/60*52}px"></div>`;
     }
@@ -299,16 +437,18 @@ function render(){
   if (prev) prev.remove();
   if (!total)
     $("body").insertAdjacentHTML("afterend",
-      '<div class="empty">Nothing timetabled this week — outside Full Term, or everything is filtered out.</div>');
+      '<div class="empty">Nothing this week — outside term, or everything is filtered out.</div>');
 
   document.querySelectorAll(".ev").forEach(el =>
     el.onclick = () => open_(JSON.parse(el.dataset.s)));
 }
 
+function esc(t){ return String(t).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
 function open_(s){
   const d = parseISO(s.date);
   $("dTitle").textContent  = s.title;
-  $("dCourse").textContent = COURSES[s.course].name;
+  $("dCourse").textContent = (COURSES[s.course] || {}).name || s.course;
   $("dWhen").textContent   = d.toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})
                            + ", " + s.start + "–" + s.end;
   $("dType").textContent   = s.type;
@@ -317,9 +457,10 @@ function open_(s){
 }
 
 function chips(){
-  $("chips").innerHTML = Object.entries(COURSES).map(([k,c]) =>
-    `<span class="chip" data-c="${k}" data-off="${hidden.has(k)?1:0}">`
-  + `<i class="dot" style="background:${c.colour}"></i>${k}</span>`).join("");
+  const used = ICS ? [...new Set(ICS.map(e => e.course))] : Object.keys(COURSES);
+  $("chips").innerHTML = used.map(k =>
+    `<span class="chip" data-c="${esc(k)}" data-off="${hidden.has(k)?1:0}">`
+  + `<i class="dot" style="background:${(COURSES[k]||{}).colour||"#888"}"></i>${esc(k)}</span>`).join("");
   document.querySelectorAll(".chip").forEach(el => el.onclick = () => {
     const k = el.dataset.c;
     hidden.has(k) ? hidden.delete(k) : hidden.add(k);
@@ -330,38 +471,74 @@ function chips(){
 
 function jumpToToday(){
   const now = new Date();
-  for (let t = 0; t < TERMS.length; t++){
-    const ws = weeksOf(TERMS[t]);
-    for (let w = 0; w < ws.length; w++){
-      if (iso(mondayOf(now)) === iso(ws[w].monday)){ termIdx = t; weekIdx = w; return true; }
-    }
-    if (now < parseISO(TERMS[t].start)){ termIdx = t; weekIdx = 0; return false; }
+  for (let t = 0; t < TERM_LIST.length; t++){
+    const ws = weeksOf(TERM_LIST[t]);
+    for (let w = 0; w < ws.length; w++)
+      if (iso(mondayOf(now)) === iso(ws[w].monday)){ termIdx = t; weekIdx = w; return; }
+    if (now < parseISO(TERM_LIST[t].start)){ termIdx = t; weekIdx = 0; return; }
   }
-  termIdx = TERMS.length-1; weekIdx = 0; return false;
+  termIdx = TERM_LIST.length-1; weekIdx = 0;
 }
 
-$("term").innerHTML = TERMS.map((t,i)=>`<option value="${i}">${t.name}</option>`).join("");
+function banner(){
+  const b = $("banner");
+  if (ICS){
+    b.className = "note live";
+    b.innerHTML = `<strong>Your timetable.</strong> ${ICS.length} sessions loaded from your .ics, `
+      + `${new Date(ICS[0].start).toLocaleDateString("en-GB")} to `
+      + `${new Date(ICS[ICS.length-1].start).toLocaleDateString("en-GB")}. `
+      + `Stored in this browser only. “Use sample” goes back to the blank skeleton.`;
+  } else {
+    b.className = "note";
+    b.innerHTML = "<strong>This is sample data, not your timetable.</strong> "
+      + "Cambridge timetables sit behind Raven and differ by set, so they cannot be scraped — "
+      + "export your own instead: <code>timetable.cam.ac.uk</code> → sign in with Raven → "
+      + "connect/export to calendar → save the <code>.ics</code> → <em>Load my .ics</em> above. "
+      + "It is parsed in this page and never uploaded. "
+      + "Until then the grid shows a plausible shape of a MedST IA week with invented times.";
+  }
+}
+
+function refresh(){
+  $("term").innerHTML = TERM_LIST.map((t,i)=>`<option value="${i}">${esc(t.name)}</option>`).join("");
+  $("clear").hidden = !ICS;
+  jumpToToday();
+  $("term").value = termIdx;
+  banner(); chips(); render();
+}
+
+/* ---------- wiring -------------------------------------------------------- */
+
 $("term").onchange = e => { termIdx = +e.target.value; weekIdx = 0; render(); };
 $("prev").onclick  = () => { weekIdx--; render(); };
 $("next").onclick  = () => { weekIdx++; render(); };
 $("today").onclick = () => { jumpToToday(); $("term").value = termIdx; render(); };
+$("load").onclick  = () => $("file").click();
+$("clear").onclick = () => { useSample(); refresh(); };
+$("file").onchange = e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  f.text().then(t => { if (useICS(t)) refresh(); });
+  e.target.value = "";
+};
+
+addEventListener("dragover", e => { e.preventDefault(); document.body.classList.add("drop"); });
+addEventListener("dragleave", () => document.body.classList.remove("drop"));
+addEventListener("drop", e => {
+  e.preventDefault(); document.body.classList.remove("drop");
+  const f = e.dataTransfer.files[0];
+  if (f) f.text().then(t => { if (useICS(t)) refresh(); });
+});
 addEventListener("keydown", e => {
   if (e.key === "ArrowLeft"  && !$("prev").disabled){ weekIdx--; render(); }
   if (e.key === "ArrowRight" && !$("next").disabled){ weekIdx++; render(); }
 });
 
-$("banner").innerHTML =
-  "<strong>Read this first.</strong> The session times below are a plausible shape of a MedST IA week, "
-+ "not the confirmed 2026–27 timetable — they were not fetched from "
-+ "timetable.pdn.cam.ac.uk. Replace the <code>SESSIONS</code> array near the top of this file "
-+ "with the real slots, and check the Full Term dates in <code>TERMS</code> against the University's "
-+ "official term dates. Your college sets supervisions separately.";
-
-jumpToToday();
-$("term").value = termIdx;
-chips();
-render();
+const saved = localStorage.getItem("med.ics");
+if (saved) try { useICS(saved); } catch(_) { useSample(); }
+refresh();
 setInterval(render, 60000);
+
 </script>
 </body>
 </html>
