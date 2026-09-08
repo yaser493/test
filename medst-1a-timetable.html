@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MedST Part IA Timetable 2026/27</title>
+<style>
+  :root{
+    --bg:#fbfaf8; --fg:#1c1b19; --mut:#6d6a64; --line:#dedad3; --card:#fff;
+    --fab:#a8432c; --hom:#2c6a58; --mims:#37538f; --isbm:#6a4f86; --pfp:#8a6a1c; --sup:#5a5a5a;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#16171a;--fg:#e9e7e3;--mut:#9b968e;--line:#33353a;--card:#1e2024;
+      --fab:#d97a60;--hom:#5fae95;--mims:#7c9ce0;--isbm:#a98cc9;--pfp:#c9a548;--sup:#9a9a9a;}
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+  h1{font-size:20px;margin:0 0 2px;font-weight:600}
+  .sub{color:var(--mut);font-size:13px;margin:0 0 14px}
+  .warn{border:1px solid var(--line);border-left:3px solid var(--fab);background:var(--card);
+    padding:10px 12px;border-radius:4px;font-size:13px;margin:0 0 16px}
+  .warn a{color:inherit}
+  .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+  button{font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);
+    padding:5px 11px;border-radius:4px;cursor:pointer}
+  button:hover{border-color:var(--mut)}
+  button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+  .spacer{flex:1}
+  .wk{font-variant-numeric:tabular-nums;min-width:200px;text-align:center;color:var(--mut)}
+  .grid{display:grid;grid-template-columns:46px repeat(6,1fr);border:1px solid var(--line);
+    border-radius:4px;overflow:hidden;background:var(--card)}
+  .hd{padding:6px 8px;font-size:12px;font-weight:600;border-bottom:1px solid var(--line);
+    border-left:1px solid var(--line);background:var(--bg)}
+  .hd:first-child{border-left:0}
+  .hd.today{color:var(--mims)}
+  .hd span{font-weight:400;color:var(--mut)}
+  .times{position:relative;border-right:1px solid var(--line)}
+  .times div{position:absolute;right:5px;font-size:11px;color:var(--mut);transform:translateY(-6px)}
+  .times div:last-child{transform:translateY(-12px)}
+  .col{position:relative;border-left:1px solid var(--line)}
+  .col.off,.hd.off{background:repeating-linear-gradient(45deg,var(--bg) 0 7px,transparent 7px 14px);color:var(--mut)}
+  .nb{position:absolute;top:6px;left:0;right:0;text-align:center;font-size:11px;color:var(--mut)}
+  .col .h{position:absolute;left:0;right:0;border-top:1px solid var(--line);opacity:.55}
+  .ev{position:absolute;left:2px;right:2px;border-radius:3px;padding:3px 5px;overflow:hidden;
+    color:#fff;font-size:11.5px;line-height:1.25;cursor:pointer;border:1px solid rgba(0,0,0,.15)}
+  .ev b{display:block;font-weight:600;font-size:12px}
+  .ev.tbc{background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.14) 0 6px,transparent 6px 12px)}
+  .ev:focus{outline:2px solid var(--fg);outline-offset:1px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0 0;font-size:12.5px;color:var(--mut)}
+  .legend span{display:flex;align-items:center;gap:6px}
+  .sw{width:11px;height:11px;border-radius:2px;display:inline-block}
+  #panel{margin-top:14px;border:1px solid var(--line);background:var(--card);border-radius:4px;
+    padding:12px 14px;font-size:13px}
+  #panel h2{font-size:14px;margin:0 0 4px}
+  #panel p{margin:0 0 6px;color:var(--mut)}
+  footer{margin-top:26px;font-size:12px;color:var(--mut);border-top:1px solid var(--line);padding-top:12px}
+  footer a{color:inherit}
+  @media(max-width:720px){.grid{font-size:11px}.ev{font-size:10.5px}.ev b{font-size:11px}}
+  @media print{.bar,.warn,#panel,footer{display:none}body{background:#fff}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>Medical Sciences Tripos — Part IA</h1>
+<p class="sub">First-year (1st MB) week at a glance, 2026/27.</p>
+
+<div class="warn">
+<strong>Read this first.</strong> The real timetable is personal: MedST students are split into
+sets, and your set decides which afternoons your practicals fall on. Get yours from
+<a href="https://timetable.pdn.cam.ac.uk/index.php">timetable.pdn.cam.ac.uk</a> /
+Timetabler (Raven login) once you're up.
+This page is the <em>shape</em> of the week — mornings are lectures, afternoons are practicals.
+Anything hatched is set-dependent. Times and dates: check before relying on them.
+To fix it for yourself, open this file and edit the <code>SESSIONS</code> block at the top of the script.
+</div>
+
+<div class="bar">
+  <div id="terms"></div>
+  <div class="spacer"></div>
+  <button id="prev">&larr;</button>
+  <div class="wk" id="wklab"></div>
+  <button id="next">&rarr;</button>
+  <button onclick="print()">Print</button>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div class="legend" id="legend"></div>
+<div id="panel">Click any session for detail.</div>
+
+<footer>
+  Single file, no dependencies. Term dates are the University's published full-term dates for
+  2026/27 — verify at <a href="https://www.cam.ac.uk/about-the-university/term-dates-and-calendars">cam.ac.uk term dates</a>.
+  Course pages: <a href="https://www.biology.cam.ac.uk/undergrads/MedST/Current/Timetables">Faculty of Biology</a>,
+  <a href="https://www.pdn.cam.ac.uk/undergraduate/part-ia-courses">PDN Part IA</a>.
+</footer>
+</div>
+
+<script>
+/* ------------------------------------------------------------------ *
+ *  EDIT BELOW. Everything else is plumbing.
+ * ------------------------------------------------------------------ */
+
+const COURSES = {
+  FAB : {name:"Functional Architecture of the Body", col:"var(--fab)",
+         about:"Anatomy, histology and embryology. Lectures plus dissection-room practicals on the Downing Site."},
+  HOM : {name:"Homeostasis", col:"var(--hom)",
+         about:"Physiology: cells, membranes, nerve and muscle, heart, lungs, kidney, gut, endocrine control."},
+  MIMS: {name:"Molecules in Medical Science", col:"var(--mims)",
+         about:"Biochemistry and molecular biology underpinning medicine."},
+  ISBM: {name:"Introduction to the Scientific Basis of Medicine", col:"var(--isbm)",
+         about:"Evidence, statistics, populations and the social context of medicine."},
+  PfP : {name:"Preparing for Patients", col:"var(--pfp)",
+         about:"Clinical School strand. A small number of visits/placements across the year — dates come separately, not weekly."},
+  SUP : {name:"College supervisions", col:"var(--sup)",
+         about:"Arranged by your college, usually 2–3 a week. Slots vary — pencil yours in here."}
+};
+
+// Full Term dates. Week count is worked out from start/end, so just fix the dates.
+const TERMS = [
+  {id:"mich",  name:"Michaelmas 2026", start:"2026-10-06", end:"2026-12-04",
+   note:"Full Term Tue 6 Oct – Fri 4 Dec 2026. Lectures start straight away in week 1."},
+  {id:"lent",  name:"Lent 2027",       start:"2027-01-19", end:"2027-03-19",
+   note:"Full Term Tue 19 Jan – Fri 19 Mar 2027."},
+  {id:"easter",name:"Easter 2027",     start:"2027-04-20", end:"2027-06-11",
+   note:"Full Term Tue 20 Apr – Fri 11 Jun 2027. Short teaching run, then revision and the 1st MB exams."}
+];
+
+// day: 1=Mon … 6=Sat.  tbc:true = set-dependent, confirm on Timetabler.
+const LEC = {kind:"Lecture"}, PRAC = {kind:"Practical", tbc:true};
+
+const SESSIONS = {
+  mich: [
+    {day:1, from:"09:00", to:"10:00", code:"MIMS", where:"Biochemistry LT", ...LEC},
+    {day:1, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",      ...LEC},
+    {day:1, from:"11:00", to:"12:00", code:"HOM",  where:"Physiology LT",   ...LEC},
+    {day:1, from:"14:00", to:"17:00", code:"FAB",  where:"Anatomy Building — dissection", ...PRAC},
+
+    {day:2, from:"09:00", to:"10:00", code:"MIMS", where:"Biochemistry LT", ...LEC},
+    {day:2, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",      ...LEC},
+    {day:2, from:"11:00", to:"12:00", code:"HOM",  where:"Physiology LT",   ...LEC},
+
+    {day:3, from:"09:00", to:"10:00", code:"MIMS", where:"Biochemistry LT", ...LEC},
+    {day:3, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",      ...LEC},
+    {day:3, from:"11:00", to:"12:00", code:"HOM",  where:"Physiology LT",   ...LEC},
+    {day:3, from:"14:00", to:"17:00", code:"HOM",  where:"Physiology teaching lab", ...PRAC},
+
+    {day:4, from:"09:00", to:"10:00", code:"MIMS", where:"Biochemistry LT", ...LEC},
+    {day:4, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",      ...LEC},
+    {day:4, from:"11:00", to:"12:00", code:"HOM",  where:"Physiology LT",   ...LEC},
+    {day:4, from:"14:00", to:"17:00", code:"MIMS", where:"Biochemistry teaching lab", ...PRAC},
+
+    {day:5, from:"09:00", to:"10:00", code:"MIMS", where:"Biochemistry LT", ...LEC},
+    {day:5, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",      ...LEC},
+    {day:5, from:"11:00", to:"12:00", code:"HOM",  where:"Physiology LT",   ...LEC},
+
+    {day:6, from:"09:00", to:"10:00", code:"ISBM", where:"see Timetabler", ...LEC},
+    {day:6, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",     ...LEC}
+  ]
+};
+SESSIONS.lent = SESSIONS.mich;          // same shape; content moves on
+SESSIONS.easter = [                     // short teaching run, then revision + 1st MB
+  {day:1, from:"09:00", to:"10:00", code:"HOM",  where:"Physiology LT", ...LEC},
+  {day:1, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",    ...LEC},
+  {day:2, from:"09:00", to:"10:00", code:"HOM",  where:"Physiology LT", ...LEC},
+  {day:2, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",    ...LEC},
+  {day:3, from:"09:00", to:"10:00", code:"HOM",  where:"Physiology LT", ...LEC},
+  {day:3, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",    ...LEC},
+  {day:4, from:"09:00", to:"10:00", code:"ISBM", where:"see Timetabler", ...LEC},
+  {day:5, from:"09:00", to:"10:00", code:"HOM",  where:"Physiology LT", ...LEC}
+];
+
+/* ------------------------------------------------------------------ *
+ *  Plumbing.
+ * ------------------------------------------------------------------ */
+
+const DAY0 = 9, DAY1 = 18, PXMIN = 1.15;          // grid runs 09:00–18:00
+const DAYS = ["Mon","Tue","Wed","Thu","Fri","Sat"];
+const MON  = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+const mins = t => (+t.slice(0,2))*60 + (+t.slice(3,5));
+const iso  = s => { const [y,m,d] = s.split("-").map(Number); return new Date(y, m-1, d); };
+const add  = (d,n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+const fmt  = d => d.getDate() + " " + MON[d.getMonth()];
+const same = (a,b) => a.toDateString() === b.toDateString();
+
+// Monday of the week in which Full Term begins, and how many Mon-weeks it spans.
+const week1 = t => { const s = iso(t.start); return add(s, -((s.getDay()+6) % 7)); };
+const nweeks = t => Math.floor((iso(t.end) - week1(t)) / 6048e5) + 1;
+TERMS.forEach(t => t.weeks = nweeks(t));
+
+let term = TERMS[0], week = 1;
+
+// Land on today if term is in progress, else on the next term to start.
+(function locate(){
+  const now = new Date();
+  for (const t of TERMS){
+    const w1 = week1(t);
+    const n = Math.floor((now - w1) / 6048e5) + 1;
+    if (n >= 1 && n <= t.weeks){ term = t; week = n; return; }
+  }
+  const next = TERMS.find(t => week1(t) > now);
+  if (next) term = next;
+})();
+
+const $ = s => document.querySelector(s);
+
+$("#terms").innerHTML = TERMS.map(t =>
+  `<button data-t="${t.id}">${t.name}</button>`).join(" ");
+$("#terms").onclick = e => {
+  const id = e.target.dataset.t;
+  if (!id) return;
+  term = TERMS.find(t => t.id === id); week = 1; draw();
+};
+$("#prev").onclick = () => { if (week > 1) { week--; draw(); } };
+$("#next").onclick = () => { if (week < term.weeks) { week++; draw(); } };
+
+$("#legend").innerHTML = Object.entries(COURSES).map(([k,c]) =>
+  `<span><i class="sw" style="background:${c.col}"></i>${k} — ${c.name}</span>`).join("");
+
+function draw(){
+  document.querySelectorAll("#terms button")
+    .forEach(b => b.setAttribute("aria-pressed", b.dataset.t === term.id));
+
+  const mon = add(week1(term), (week-1)*7);
+  const sat = add(mon, 5);
+  $("#wklab").textContent = `Week ${week} of ${term.weeks} · ${fmt(mon)} – ${fmt(sat)}`;
+  $("#prev").disabled = week === 1;
+  $("#next").disabled = week === term.weeks;
+
+  const H = (DAY1 - DAY0) * 60 * PXMIN;
+  const today = new Date();
+  let html = `<div class="hd"></div>`;
+
+  DAYS.forEach((d,i) => {
+    const date = add(mon, i), off = date < iso(term.start) || date > iso(term.end);
+    html += `<div class="hd${same(date,today) ? " today" : ""}${off ? " off" : ""}">${d} <span>${fmt(date)}</span></div>`;
+  });
+
+  html += `<div class="times" style="height:${H}px">`;
+  for (let h = DAY0; h <= DAY1; h++)
+    html += `<div style="top:${(h-DAY0)*60*PXMIN}px">${h}:00</div>`;
+  html += `</div>`;
+
+  const t0 = iso(term.start), t1 = iso(term.end);
+  DAYS.forEach((_,i) => {
+    const date = add(mon, i), off = date < t0 || date > t1;
+    html += `<div class="col${off ? " off" : ""}" style="height:${H}px">`;
+    for (let h = DAY0 + 1; h < DAY1; h++)
+      html += `<div class="h" style="top:${(h-DAY0)*60*PXMIN}px"></div>`;
+    if (off) html += `<div class="nb">out of Full Term</div>`;
+
+    (off ? [] : SESSIONS[term.id] || []).filter(s => s.day === i+1).forEach((s,n) => {
+      const top = (mins(s.from) - DAY0*60) * PXMIN;
+      const hgt = (mins(s.to) - mins(s.from)) * PXMIN - 2;
+      html += `<div class="ev${s.tbc ? " tbc" : ""}" tabindex="0"
+                 data-d="${i+1}" data-n="${n}"
+                 style="top:${top}px;height:${hgt}px;background-color:${COURSES[s.code].col}">
+                 <b>${s.code}</b>${s.kind}${s.tbc ? " *" : ""}</div>`;
+    });
+    html += `</div>`;
+  });
+
+  $("#grid").innerHTML = html;
+  $("#panel").innerHTML = `<h2>${term.name}</h2><p>${term.note}</p>
+    <p>Hatched blocks marked * are set-dependent — confirm the day on Timetabler.
+    Supervisions and Preparing for Patients aren't on this grid; they're arranged
+    by your college and the Clinical School.</p>`;
+}
+
+function show(ev){
+  const el = ev.target.closest(".ev");
+  if (!el) return;
+  const s = (SESSIONS[term.id] || []).filter(x => x.day === +el.dataset.d)[+el.dataset.n];
+  if (!s) return;
+  const c = COURSES[s.code];
+  $("#panel").innerHTML =
+    `<h2 style="color:${c.col}">${s.code} — ${c.name}</h2>
+     <p>${DAYS[s.day-1]} ${s.from}–${s.to} · ${s.kind} · ${s.where}</p>
+     <p>${c.about}</p>
+     ${s.tbc ? `<p><strong>Set-dependent</strong> — your practical may be on another afternoon.</p>` : ""}`;
+}
+$("#grid").addEventListener("click", show);
+$("#grid").addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); show(e); } });
+
+draw();
+</script>
+</body>
+</html>
