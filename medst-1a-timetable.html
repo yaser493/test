@@ -69,9 +69,9 @@
 
 <div class="warn">
 <strong>Read this first.</strong> The real timetable is personal: MedST students are split into
-sets, and your set decides which afternoons your practicals fall on. Get yours from
-<a href="https://timetable.pdn.cam.ac.uk/index.php">timetable.pdn.cam.ac.uk</a> /
-Timetabler (Raven login) once you're up.
+sets, and your set decides which afternoons your practicals fall on. Look yours up on
+<a href="https://timetable.pdn.cam.ac.uk/index.php">timetable.pdn.cam.ac.uk</a>
+&mdash; it's open, no login needed &mdash; and on Timetabler once you have a CRSid.
 This page is the <em>shape</em> of the week — mornings are lectures, afternoons are practicals.
 Anything hatched is set-dependent. Times and dates: check before relying on them.
 To fix it for yourself, open this file and edit the <code>SESSIONS</code> block at the top of the script.
@@ -129,7 +129,7 @@ const TERMS = [
    note:"Full Term Tue 20 Apr – Fri 11 Jun 2027. Short teaching run, then revision and the 1st MB exams."}
 ];
 
-// day: 1=Mon … 6=Sat.  tbc:true = set-dependent, confirm on Timetabler.
+// day: 1=Mon … 6=Sat.  tbc:true = set-dependent, confirm on timetable.pdn.cam.ac.uk.
 const LEC = {kind:"Lecture"}, PRAC = {kind:"Practical", tbc:true};
 
 const SESSIONS = {
@@ -157,7 +157,7 @@ const SESSIONS = {
     {day:5, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",      ...LEC},
     {day:5, from:"11:00", to:"12:00", code:"HOM",  where:"Physiology LT",   ...LEC},
 
-    {day:6, from:"09:00", to:"10:00", code:"ISBM", where:"see Timetabler", ...LEC},
+    {day:6, from:"09:00", to:"10:00", code:"ISBM", where:"see timetable.pdn.cam.ac.uk", ...LEC},
     {day:6, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",     ...LEC}
   ]
 };
@@ -169,7 +169,7 @@ SESSIONS.easter = [                     // short teaching run, then revision + 1
   {day:2, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",    ...LEC},
   {day:3, from:"09:00", to:"10:00", code:"HOM",  where:"Physiology LT", ...LEC},
   {day:3, from:"10:00", to:"11:00", code:"FAB",  where:"Anatomy LT",    ...LEC},
-  {day:4, from:"09:00", to:"10:00", code:"ISBM", where:"see Timetabler", ...LEC},
+  {day:4, from:"09:00", to:"10:00", code:"ISBM", where:"see timetable.pdn.cam.ac.uk", ...LEC},
   {day:5, from:"09:00", to:"10:00", code:"HOM",  where:"Physiology LT", ...LEC}
 ];
 
@@ -266,7 +266,7 @@ function draw(){
 
   $("#grid").innerHTML = html;
   $("#panel").innerHTML = `<h2>${term.name}</h2><p>${term.note}</p>
-    <p>Hatched blocks marked * are set-dependent — confirm the day on Timetabler.
+    <p>Hatched blocks marked * are set-dependent — confirm the day against timetable.pdn.cam.ac.uk.
     Supervisions and Preparing for Patients aren't on this grid; they're arranged
     by your college and the Clinical School.</p>`;
 }
