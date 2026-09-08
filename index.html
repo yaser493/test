@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MedST IA Timetable 2026/27</title>
+<style>
+:root{
+  --bg:#fbfbf9; --panel:#fff; --ink:#16181d; --muted:#6b7280; --line:#e3e3df;
+  --accent:#0f4c81; --warn:#8a5a00; --warn-bg:#fff6e0;
+}
+@media (prefers-color-scheme:dark){
+  :root{ --bg:#14161a; --panel:#1b1e24; --ink:#e8e8e6; --muted:#9aa1ac; --line:#2c313a;
+         --accent:#8ab4dd; --warn:#e0b96a; --warn-bg:#2e2612; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+header{padding:14px 16px 10px;border-bottom:1px solid var(--line);background:var(--panel)}
+h1{margin:0 0 2px;font-size:16px;font-weight:650;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:12px}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 16px;
+  border-bottom:1px solid var(--line);background:var(--panel)}
+button,select,input{font:inherit;color:inherit;background:var(--panel);
+  border:1px solid var(--line);border-radius:5px;padding:5px 9px}
+button{cursor:pointer}
+button:hover{border-color:var(--muted)}
+button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.spacer{flex:1}
+.weeknav{display:flex;align-items:center;gap:6px}
+.weeklabel{min-width:150px;text-align:center;font-variant-numeric:tabular-nums}
+.note{margin:10px 16px 0;padding:8px 10px;border:1px solid var(--line);
+  border-left:3px solid var(--warn);background:var(--warn-bg);color:var(--warn);
+  font-size:12.5px;border-radius:4px;display:flex;gap:10px;align-items:center}
+.note[hidden]{display:none}
+.note button{background:transparent;border-color:currentColor;color:inherit;padding:3px 8px;font-size:12px}
+main{padding:12px 16px 40px}
+
+/* week grid */
+.grid{display:grid;grid-template-columns:52px repeat(5,minmax(120px,1fr));
+  border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.hd{padding:6px 8px;font-size:12px;font-weight:600;border-bottom:1px solid var(--line);
+  border-left:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:2}
+.hd:first-child{border-left:0}
+.hd .d{color:var(--muted);font-weight:400}
+.hd.today{box-shadow:inset 0 -2px 0 var(--accent)}
+.gutter{position:relative;border-right:1px solid var(--line)}
+.gutter span{position:absolute;right:6px;transform:translateY(-6px);
+  font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.col{position:relative;border-left:1px solid var(--line)}
+.col.today{background:color-mix(in srgb,var(--accent) 6%,transparent)}
+.hour{position:absolute;left:0;right:0;border-top:1px solid var(--line);opacity:.6}
+.half{position:absolute;left:0;right:0;border-top:1px dotted var(--line);opacity:.4}
+.ev{position:absolute;left:2px;right:2px;border-radius:4px;padding:3px 5px;overflow:hidden;
+  font-size:11.5px;line-height:1.25;cursor:pointer;border-left:3px solid}
+.ev b{display:block;font-weight:600}
+.ev small{color:inherit;opacity:.75;display:block;font-variant-numeric:tabular-nums}
+
+/* agenda (mobile) */
+.agenda{display:none}
+.day{border:1px solid var(--line);border-radius:6px;background:var(--panel);margin-bottom:10px;overflow:hidden}
+.day>h2{margin:0;padding:7px 10px;font-size:13px;border-bottom:1px solid var(--line)}
+.day>h2 span{color:var(--muted);font-weight:400}
+.day.today>h2{box-shadow:inset 3px 0 0 var(--accent)}
+.row{display:flex;gap:10px;padding:7px 10px;border-top:1px solid var(--line);cursor:pointer}
+.row:first-of-type{border-top:0}
+.row .t{width:88px;flex:none;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row .tag{width:4px;flex:none;border-radius:2px}
+.row .m{font-size:12px;color:var(--muted)}
+.empty{padding:10px;color:var(--muted);font-size:12.5px}
+
+dialog{border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);
+  padding:0;width:min(420px,94vw)}
+dialog::backdrop{background:rgba(0,0,0,.4)}
+form{padding:14px}
+form h3{margin:0 0 10px;font-size:14px}
+label{display:block;margin-bottom:8px;font-size:12px;color:var(--muted)}
+label input,label select{width:100%;margin-top:3px;color:var(--ink)}
+.two{display:flex;gap:8px}
+.two label{flex:1}
+.acts{display:flex;gap:8px;margin-top:12px}
+.acts .spacer{flex:1}
+footer{padding:0 16px 30px;color:var(--muted);font-size:12px;max-width:70ch}
+footer a{color:var(--accent)}
+footer ul{padding-left:18px;margin:6px 0}
+@media (max-width:720px){
+  .grid{display:none}
+  .agenda{display:block}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MedST IA — Timetable 2026/27</h1>
+  <div class="sub">Cambridge Medical Sciences Tripos, Part IA. First year, incoming 2026.</div>
+</header>
+
+<div class="bar">
+  <select id="term"></select>
+  <div class="weeknav">
+    <button id="prev" title="Previous week">&larr;</button>
+    <span class="weeklabel" id="wklabel"></span>
+    <button id="next" title="Next week">&rarr;</button>
+  </div>
+  <button id="today">Today</button>
+  <span class="spacer"></span>
+  <button id="add" class="primary">Add session</button>
+  <button id="export">Export</button>
+  <button id="import">Import</button>
+  <button id="clear">Clear all</button>
+</div>
+
+<div class="note" id="seedNote" hidden>
+  <span>This is an <b>example</b> week, not your timetable. MedST students are split into sets
+  with different slots — copy yours from Timetabler and edit these.</span>
+  <span class="spacer"></span>
+  <button id="dismissNote">OK</button>
+</div>
+
+<main>
+  <div class="grid" id="grid"></div>
+  <div class="agenda" id="agenda"></div>
+</main>
+
+<footer>
+  <p><b>Full Term dates</b> (University of Cambridge):</p>
+  <ul>
+    <li>Michaelmas 2026 — Tue 6 Oct to Fri 4 Dec</li>
+    <li>Lent 2027 — Tue 12 Jan to Fri 12 Mar</li>
+    <li>Easter 2027 — Tue 20 Apr to Fri 11 Jun</li>
+  </ul>
+  <p>Weeks here are labelled by their Monday. Cambridge's own week numbering runs Thursday
+  to Wednesday, so trust the dates rather than the number.</p>
+  <p>Official per-set timetables:
+  <a href="https://timetable.pdn.cam.ac.uk/index.php">timetable.pdn.cam.ac.uk</a>
+  (Timetabler, Raven login). Everything you enter here is stored in this browser only.</p>
+</footer>
+
+<dialog id="dlg">
+<form method="dialog" id="form">
+  <h3 id="dlgTitle">Session</h3>
+  <label>Title <input name="title" required placeholder="e.g. Cardiac cycle"></label>
+  <label>Course
+    <select name="code" id="codeSel"></select>
+  </label>
+  <label>Location <input name="loc" placeholder="e.g. Anatomy Lecture Theatre"></label>
+  <div class="two">
+    <label>Day
+      <select name="day">
+        <option value="1">Monday</option><option value="2">Tuesday</option>
+        <option value="3">Wednesday</option><option value="4">Thursday</option>
+        <option value="5">Friday</option>
+      </select>
+    </label>
+    <label>Start <input name="start" type="time" required value="09:00" step="300"></label>
+    <label>End <input name="end" type="time" required value="10:00" step="300"></label>
+  </div>
+  <label>Repeats
+    <select name="scope">
+      <option value="all">Every week, all terms</option>
+      <option value="term">Every week this term</option>
+      <option value="once">This week only</option>
+    </select>
+  </label>
+  <div class="acts">
+    <button value="save" class="primary">Save</button>
+    <button value="cancel" formnovalidate>Cancel</button>
+    <span class="spacer"></span>
+    <button value="delete" id="del" formnovalidate hidden>Delete</button>
+  </div>
+</form>
+</dialog>
+
+<script>
+const COURSES = {
+  FAB:   ['Functional Architecture of the Body', '#c2410c'],
+  HOM:   ['Homeostasis',                          '#0f766e'],
+  MIMS:  ['Molecules in Medical Science',         '#6d28d9'],
+  HIST:  ['Histology',                            '#b91c1c'],
+  FEBP:  ['Foundations of Evidence Based Practice','#1d4ed8'],
+  SECHI: ['Social & Ethical Context of Health and Illness', '#a16207'],
+  PFP:   ['Preparing for Patients',               '#be185d'],
+  SUPO:  ['Supervision',                          '#374151'],
+  OTHER: ['Other',                                '#4b5563']
+};
+
+const TERMS = [
+  { id:'mich',   name:'Michaelmas 2026', start:'2026-10-06', end:'2026-12-04' },
+  { id:'lent',   name:'Lent 2027',       start:'2027-01-12', end:'2027-03-12' },
+  { id:'easter', name:'Easter 2027',     start:'2027-04-20', end:'2027-06-11' }
+];
+
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const DAY_START = 8*60, DAY_END = 19*60, PX = 0.9, PAD = 10;
+
+const EXAMPLE = [
+  ['Homeostasis lecture','HOM',1,'09:00','10:00'],
+  ['MIMS lecture','MIMS',1,'10:00','11:00'],
+  ['FAB lecture','FAB',1,'11:00','12:00'],
+  ['Dissection','FAB',1,'14:00','16:00'],
+  ['MIMS lecture','MIMS',2,'09:00','10:00'],
+  ['Homeostasis lecture','HOM',2,'10:00','11:00'],
+  ['Histology practical','HIST',2,'11:00','13:00'],
+  ['Supervision','SUPO',2,'16:00','17:00'],
+  ['FAB lecture','FAB',3,'09:00','10:00'],
+  ['MIMS lecture','MIMS',3,'10:00','11:00'],
+  ['SECHI','SECHI',3,'14:00','15:00'],
+  ['Homeostasis lecture','HOM',4,'09:00','10:00'],
+  ['FAB lecture','FAB',4,'10:00','11:00'],
+  ['Homeostasis practical','HOM',4,'14:00','17:00'],
+  ['MIMS lecture','MIMS',5,'09:00','10:00'],
+  ['Homeostasis lecture','HOM',5,'10:00','11:00'],
+  ['FEBP lecture','FEBP',5,'11:00','12:00'],
+  ['Dissection','FAB',5,'14:00','16:00']
+];
+
+/* ---------- state ---------- */
+const KEY = 'medst1a-2627';
+let store = load();
+let termIdx = 0, weekIdx = 0;
+
+function load(){
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (raw) return JSON.parse(raw);
+  } catch(e){}
+  return {
+    seeded: true,
+    sessions: EXAMPLE.map(([title,code,day,start,end],i)=>
+      ({id:'e'+i, title, code, day, start, end, loc:'', scope:'all'}))
+  };
+}
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(store)); } catch(e){}
+}
+
+/* ---------- dates ---------- */
+const d2s = d => d.toISOString().slice(0,10);
+const parse = s => { const [y,m,d]=s.split('-').map(Number); return new Date(Date.UTC(y,m-1,d)); };
+const addDays = (d,n) => new Date(d.getTime()+n*864e5);
+const fmt = (d,o) => d.toLocaleDateString('en-GB', {timeZone:'UTC', ...o});
+const mins = t => { const [h,m]=t.split(':').map(Number); return h*60+m; };
+
+function weeksOf(term){
+  const s = parse(term.start), e = parse(term.end);
+  const first = addDays(s, -((s.getUTCDay()+6)%7));   // Monday of week 1
+  const out = [];
+  for (let d = first; d <= e; d = addDays(d,7)) out.push(d);
+  return out;
+}
+const allWeeks = TERMS.map(weeksOf);
+
+function todayPos(){
+  const t = new Date();
+  const key = [t.getFullYear(), String(t.getMonth()+1).padStart(2,'0'),
+               String(t.getDate()).padStart(2,'0')].join('-');
+  for (let i=0;i<TERMS.length;i++)
+    for (let j=0;j<allWeeks[i].length;j++)
+      for (let k=0;k<5;k++)
+        if (d2s(addDays(allWeeks[i][j],k)) === key) return {term:i, week:j, day:k+1, key};
+  return {term:null, week:null, day:null, key};
+}
+
+/* ---------- rendering ---------- */
+function sessionsFor(term, weekMonday){
+  const wk = d2s(weekMonday);
+  return store.sessions.filter(s =>
+    s.scope === 'all' ||
+    (s.scope === 'term' && s.term === term.id) ||
+    (s.scope === 'once' && s.week === wk)
+  ).sort((a,b)=> mins(a.start)-mins(b.start));
+}
+
+function layout(list){
+  // side-by-side columns, widths computed per overlapping cluster
+  let cluster = [], cols = [], clusterEnd = -1;
+  const flush = () => {
+    const n = Math.max(1, cols.length);
+    cluster.forEach(s => { s._of = n; });
+    cluster = []; cols = []; clusterEnd = -1;
+  };
+  list.forEach(s => {
+    if (mins(s.start) >= clusterEnd) flush();
+    let c = 0;
+    while (cols[c] !== undefined && cols[c] > mins(s.start)) c++;
+    cols[c] = mins(s.end);
+    s._col = c;
+    cluster.push(s);
+    clusterEnd = Math.max(clusterEnd, mins(s.end));
+  });
+  flush();
+}
+
+function render(){
+  const term = TERMS[termIdx];
+  const monday = allWeeks[termIdx][weekIdx];
+  const tp = todayPos();
+
+  document.getElementById('wklabel').textContent =
+    'Week ' + (weekIdx+1) + ' — ' + fmt(monday,{day:'numeric',month:'short'}) +
+    ' to ' + fmt(addDays(monday,4),{day:'numeric',month:'short'});
+  document.getElementById('prev').disabled = (termIdx===0 && weekIdx===0);
+  document.getElementById('next').disabled =
+    (termIdx===TERMS.length-1 && weekIdx===allWeeks[termIdx].length-1);
+
+  const all = sessionsFor(term, monday);
+  const byDay = [[],[],[],[],[]];
+  all.forEach(s => byDay[s.day-1].push(s));
+  byDay.forEach(layout);
+
+  const H = (DAY_END-DAY_START)*PX + PAD*2;
+  let g = '<div class="hd"></div>';
+  DAYS.forEach((d,i)=>{
+    const on = (tp.term===termIdx && tp.week===weekIdx && tp.day===i+1);
+    g += '<div class="hd'+(on?' today':'')+'">'+d+
+         ' <span class="d">'+fmt(addDays(monday,i),{day:'numeric',month:'short'})+'</span></div>';
+  });
+  g += '<div class="gutter" style="height:'+H+'px">';
+  for (let m=DAY_START; m<=DAY_END; m+=60)
+    g += '<span style="top:'+((m-DAY_START)*PX+PAD)+'px">'+String(m/60).padStart(2,'0')+':00</span>';
+  g += '</div>';
+  byDay.forEach((list,i)=>{
+    const on = (tp.term===termIdx && tp.week===weekIdx && tp.day===i+1);
+    g += '<div class="col'+(on?' today':'')+'" style="height:'+H+'px">';
+    for (let m=DAY_START+60; m<DAY_END; m+=60)
+      g += '<div class="hour" style="top:'+((m-DAY_START)*PX+PAD)+'px"></div>';
+    for (let m=DAY_START+30; m<DAY_END; m+=60)
+      g += '<div class="half" style="top:'+((m-DAY_START)*PX+PAD)+'px"></div>';
+    list.forEach(s=>{
+      const c = (COURSES[s.code]||COURSES.OTHER)[1];
+      const top = (mins(s.start)-DAY_START)*PX + PAD;
+      const h = Math.max(18, (mins(s.end)-mins(s.start))*PX - 2);
+      const w = 100/s._of, left = w*s._col;
+      g += '<div class="ev" data-id="'+s.id+'" style="top:'+top+'px;height:'+h+'px;'+
+           'left:calc('+left+'% + 2px);width:calc('+w+'% - 4px);'+
+           'border-left-color:'+c+';background:color-mix(in srgb,'+c+' 14%,var(--panel));'+
+           'color:color-mix(in srgb,'+c+' 70%,var(--ink))">'+
+           '<b>'+esc(s.title)+'</b><small>'+s.start+'–'+s.end+(s.loc?' · '+esc(s.loc):'')+'</small></div>';
+    });
+    g += '</div>';
+  });
+  document.getElementById('grid').innerHTML = g;
+
+  let a = '';
+  byDay.forEach((list,i)=>{
+    const on = (tp.term===termIdx && tp.week===weekIdx && tp.day===i+1);
+    a += '<div class="day'+(on?' today':'')+'"><h2>'+DAYS[i]+
+         ' <span>'+fmt(addDays(monday,i),{day:'numeric',month:'short'})+'</span></h2>';
+    if (!list.length) a += '<div class="empty">Nothing scheduled.</div>';
+    list.forEach(s=>{
+      const c = (COURSES[s.code]||COURSES.OTHER)[1];
+      a += '<div class="row" data-id="'+s.id+'"><div class="tag" style="background:'+c+'"></div>'+
+           '<div class="t">'+s.start+'–'+s.end+'</div><div><div>'+esc(s.title)+'</div>'+
+           '<div class="m">'+s.code+(s.loc?' · '+esc(s.loc):'')+'</div></div></div>';
+    });
+    a += '</div>';
+  });
+  document.getElementById('agenda').innerHTML = a;
+
+  document.getElementById('seedNote').hidden = !store.seeded;
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- editing ---------- */
+const dlg = document.getElementById('dlg'), form = document.getElementById('form');
+let editing = null;
+
+function openDlg(id){
+  editing = id;
+  const s = id ? store.sessions.find(x=>x.id===id) : null;
+  document.getElementById('dlgTitle').textContent = s ? 'Edit session' : 'New session';
+  document.getElementById('del').hidden = !s;
+  form.elements.title.value = s ? s.title : '';
+  form.elements.code.value  = s ? s.code : 'FAB';
+  form.elements.loc.value   = s ? s.loc : '';
+  form.elements.day.value   = s ? s.day : 1;
+  form.elements.start.value = s ? s.start : '09:00';
+  form.elements.end.value   = s ? s.end : '10:00';
+  form.elements.scope.value = s ? s.scope : 'all';
+  dlg.showModal();
+}
+
+form.addEventListener('submit', e => {
+  const act = e.submitter && e.submitter.value;
+  if (act === 'cancel') return;
+  if (act === 'delete'){
+    store.sessions = store.sessions.filter(x=>x.id!==editing);
+    save(); render(); return;
+  }
+  const f = new FormData(form);
+  const s = {
+    id: editing || 's'+Date.now().toString(36),
+    title: f.get('title').trim(),
+    code: f.get('code'),
+    loc: f.get('loc').trim(),
+    day: +f.get('day'),
+    start: f.get('start'),
+    end: f.get('end'),
+    scope: f.get('scope'),
+    term: TERMS[termIdx].id,
+    week: d2s(allWeeks[termIdx][weekIdx])
+  };
+  if (mins(s.end) <= mins(s.start)){
+    const m = Math.min(DAY_END, mins(s.start)+60);
+    s.end = String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+  }
+  const i = store.sessions.findIndex(x=>x.id===s.id);
+  if (i>=0) store.sessions[i] = s; else store.sessions.push(s);
+  store.seeded = false;
+  save(); render();
+});
+
+document.addEventListener('click', e=>{
+  const el = e.target.closest('.ev,.row');
+  if (el && el.dataset.id) openDlg(el.dataset.id);
+});
+
+/* ---------- controls ---------- */
+const termSel = document.getElementById('term');
+TERMS.forEach((t,i)=> termSel.add(new Option(t.name, i)));
+const codeSel = document.getElementById('codeSel');
+Object.entries(COURSES).forEach(([k,[name]])=> codeSel.add(new Option(k+' — '+name, k)));
+
+termSel.onchange = () => { termIdx = +termSel.value; weekIdx = 0; render(); };
+document.getElementById('prev').onclick = () => {
+  if (weekIdx > 0) weekIdx--;
+  else if (termIdx > 0){ termIdx--; weekIdx = allWeeks[termIdx].length-1; termSel.value = termIdx; }
+  render();
+};
+document.getElementById('next').onclick = () => {
+  if (weekIdx < allWeeks[termIdx].length-1) weekIdx++;
+  else if (termIdx < TERMS.length-1){ termIdx++; weekIdx = 0; termSel.value = termIdx; }
+  render();
+};
+document.getElementById('today').onclick = () => {
+  const tp = todayPos();
+  if (tp.term === null){ alert('Today is outside Full Term.'); return; }
+  termIdx = tp.term; weekIdx = tp.week; termSel.value = termIdx; render();
+};
+document.getElementById('add').onclick = () => openDlg(null);
+document.getElementById('clear').onclick = () => {
+  if (!confirm('Delete every session?')) return;
+  store = { seeded:false, sessions:[] }; save(); render();
+};
+document.getElementById('dismissNote').onclick = () => {
+  store.seeded = false; save(); render();
+};
+document.getElementById('export').onclick = () => {
+  const blob = new Blob([JSON.stringify(store.sessions,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'medst-1a-timetable.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+};
+document.getElementById('import').onclick = () => {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'application/json';
+  inp.onchange = () => {
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const data = JSON.parse(r.result);
+        if (!Array.isArray(data)) throw 0;
+        store = { seeded:false, sessions:data };
+        save(); render();
+      } catch(e){ alert('That file is not a timetable export.'); }
+    };
+    r.readAsText(inp.files[0]);
+  };
+  inp.click();
+};
+
+document.addEventListener('keydown', e => {
+  if (dlg.open || /INPUT|SELECT/.test(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowLeft')  document.getElementById('prev').click();
+  if (e.key === 'ArrowRight') document.getElementById('next').click();
+});
+
+/* start on the current week if we are in term, else Michaelmas week 1 */
+const tp0 = todayPos();
+if (tp0.term !== null){ termIdx = tp0.term; weekIdx = tp0.week; }
+termSel.value = termIdx;
+render();
+</script>
+</body>
+</html>
